@@ -8,10 +8,16 @@ const LogoSchema = new mongoose.Schema({
         required: true,
         index: true
     },
-    website: {
-        type: String,
+    websites: {
+        type: [String],
         required: true,
-        index: true
+        index: true,
+        validate: {
+            validator: function (webs) {
+                return webs.length > 0;
+            },
+            message: 'A company must have at least one website.'
+        }
     },
     logo: {
         type: Buffer,
@@ -20,7 +26,7 @@ const LogoSchema = new mongoose.Schema({
 })
 
 LogoSchema.index({
-    ticker: 1, 
+    ticker: 1,
     website: 1
 })
 
