@@ -2,6 +2,11 @@ const mongoose = require('mongoose')
 const uniqueValidator = require('mongoose-unique-validator')
 
 const LogoSchema = new mongoose.Schema({
+    names: {
+        type: [String],
+        required: true,
+        index: true
+    },
     ticker: {
         type: String,
         unique: true,

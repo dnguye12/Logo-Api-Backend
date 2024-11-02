@@ -4,13 +4,6 @@ const express = require("express");
 require("express-async-errors");
 const app = express();
 const cors = require("cors");
-/*
-const chartRouter = require('./controllers/chart')
-const dailyRouter = require('./controllers/daily')
-const quoteRouter = require('./controllers/quote')
-const insightsRouter = require('./controllers/insights')
-const optionsRouter = require('./controllers/options')
-*/
 
 const logoRouter = require('./controllers/logo')
 
@@ -37,14 +30,7 @@ app.use(express.static("build"));
 app.use(express.json());
 app.use(middleware.requestLogger);
 
-
 app.use('/api', logoRouter)
-/*
-app.use('/api/chart', chartRouter)
-app.use('/api/daily', dailyRouter)
-app.use('/api/quote', quoteRouter)
-app.use('/api/insights', insightsRouter)
-app.use('/api/options', optionsRouter)*/
 
 app.use(middleware.unknownEndpoint);
 app.use(middleware.errorHandler);
