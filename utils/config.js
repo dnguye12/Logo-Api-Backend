@@ -4,9 +4,11 @@ require('dotenv').config()
 const PORT = process.env.PORT
 const MONGODB_URI = process.env.MONGODB_URI
 const LOGO_API = process.env.LOGO_API
+const SECRET = process.env.SECRET
 
 module.exports = {
 	MONGODB_URI,
 	PORT,
-	LOGO_API
+	LOGO_API,
+	SECRET
 }

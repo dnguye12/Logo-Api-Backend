@@ -165,7 +165,7 @@ logoRouter.get('/', async (req, res) => {
 
     if (name) {
         try {
-            let logo = await Logo.findOne({ name: name.toLowerCase() })
+            let logo = await Logo.findOne({ names: name.toLowerCase() })
             if (logo) {
                 const base64Logo = logo.logo.toString('base64');
                 return res.json(base64Logo);
@@ -220,5 +220,38 @@ logoRouter.get('/', async (req, res) => {
     }
 });
 
+logoRouter.post('/', async(req, res) => {
+    const { secret, names, ticker, websites, logo } = req.body
+
+    if(!secret || secret != config.SECRET) {
+        return handleErrorResponse(res, 404, 'No permission.');
+    }
+
+    if (!names || !ticker || !websites || !logo) {
+        return handleErrorResponse(res, 400, 'Missing required fields.');
+    }
+
+    let logoBuffer;
+    try {
+        logoBuffer = Buffer.from(logo, 'base64');
+    } catch (error) {
+        return handleErrorResponse(res, 400, 'Invalid logo format. Please provide a base64 encoded string.', error);
+    }
+
+    const newLogo = new Logo({
+        names,
+        ticker,
+        websites,
+        logo: logoBuffer 
+    })
+
+    try {
+        const savedLogo = await newLogo.save();
+        res.status(201).json(savedLogo);
+    } catch (error) {
+        return handleErrorResponse(res, 500, 'Error saving new logo to the database.', error);
+    }
+
+})
 
 module.exports = logoRouter;
