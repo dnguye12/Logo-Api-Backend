@@ -38,6 +38,10 @@ const isValidUrl = (url) => {
     }
 };
 
+const isEmpty = (input) => {
+    return input.toString('base64') === config.LOGO_API_2_EMPTY
+}
+
 logoRouter.get('/', async (req, res) => {
     const { ticker, name, url } = req.query;
 
@@ -65,7 +69,6 @@ logoRouter.get('/', async (req, res) => {
 
             const website = quoteSummary?.summaryProfile?.website || '';
 
-            // Fetch logo image from Financial Modeling Prep API
             const logoUrl = `${config.LOGO_API}${ticker}.png`;
             let logoBuffer;
             try {
@@ -212,7 +215,31 @@ logoRouter.get('/', async (req, res) => {
                 const base64Logo = logo.logo.toString('base64');
                 res.json(base64Logo);
             } else {
-                return handleErrorResponse(res, 404, 'No ticker found for the provided website.');
+                const newUrl = `${name}.com`
+                let logoBuffer
+                try {
+                    const result = await axios.get(`${config.LOGO_API_2}${newUrl}/icon?c=${config.LOGO_API_2_KEY}`, { responseType: 'arraybuffer' })
+                    logoBuffer = Buffer.from(result.data, 'binary')
+
+                    if (logoBuffer && !isEmpty(logoBuffer)) {
+                        const newLogo = new Logo({
+                            ticker: name,
+                            name,
+                            websites: [`https://www.${name}.com`],
+                            logo: logoBuffer
+                        })
+                        logo = await newLogo.save();
+                        const base64Logo = logo.logo.toString('base64');
+                        res.json(base64Logo);
+                    }
+
+                    if (!logo) {
+                        return handleErrorResponse(res, 404, 'No brand found for this name.');
+                    }
+                } catch (error) {
+                    return handleErrorResponse(res, 404, 'No brand found for this name.');
+                }
+
             }
         } catch (error) {
             return handleErrorResponse(res, 500, 'Unexpected server error.', error);
@@ -220,10 +247,10 @@ logoRouter.get('/', async (req, res) => {
     }
 });
 
-logoRouter.post('/', async(req, res) => {
+logoRouter.post('/', async (req, res) => {
     const { secret, names, ticker, websites, logo } = req.body
 
-    if(!secret || secret != config.SECRET) {
+    if (!secret || secret != config.SECRET) {
         return handleErrorResponse(res, 404, 'No permission.');
     }
 
@@ -242,7 +269,7 @@ logoRouter.post('/', async(req, res) => {
         names,
         ticker,
         websites,
-        logo: logoBuffer 
+        logo: logoBuffer
     })
 
     try {
