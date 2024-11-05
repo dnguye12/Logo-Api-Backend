@@ -43,7 +43,7 @@ const isEmpty = (input) => {
 }
 
 logoRouter.get('/', async (req, res) => {
-    const { ticker, name, url } = req.query;
+    let { ticker, name, url } = req.query;
 
     if (!ticker && !name && !url) {
         return handleErrorResponse(res, 400, 'Missing input parameter.');
@@ -113,18 +113,52 @@ logoRouter.get('/', async (req, res) => {
                 const base64Logo = logo.logo.toString('base64');
                 return res.json(base64Logo);
             }
-
             // Attempt to find the company ticker using Yahoo Finance or other APIs
             let ticker;
             let helper;
+
+            helper = url.split('.')
+            const newUrl = helper[1] + '.' + helper[2]
+            let logoBuffer
             try {
-                helper = url.split('.')[1]
+                const result = await axios.get(`${config.LOGO_API_2}${newUrl}/icon?c=${config.LOGO_API_2_KEY}`, { responseType: 'arraybuffer' })
+                logoBuffer = Buffer.from(result.data, 'binary')
+
+                if (logoBuffer && !isEmpty(logoBuffer)) {
+                    const newLogo = new Logo({
+                        ticker: helper[1],
+                        names: [helper[1]],
+                        websites: [newUrl],
+                        logo: logoBuffer
+                    })
+                    logo = await newLogo.save();
+                    const base64Logo = logo.logo.toString('base64');
+                    res.json(base64Logo);
+                }
+            } catch (error) {
+                return handleErrorResponse(res, 404, 'No brand found for this name.');
+            }
+
+            try {
+                helper = helper[1]
 
                 const result = await yahooFinance.search(helper, {
                     newsCount: 0,
                 });
+
                 if (result && result.quotes && result.quotes.length > 0) {
-                    ticker = result.quotes[0].symbol
+
+                    for (let i = 0; i < result.quotes.length; i++) {
+                        if (!result.index || result.index !== "quotes") {
+                            continue
+                        }
+                        else if (!result.quoteType || result.quoteType.toLowerCase() !== 'equity') {
+                            continue
+                        } else {
+                            ticker = result.quotes[i].symbol
+                            break
+                        }
+                    }
                 }
             } catch (error) {
                 return handleErrorResponse(res, 404, 'Unable to find a matching ticker for the provided website.', error);
@@ -224,7 +258,7 @@ logoRouter.get('/', async (req, res) => {
                     if (logoBuffer && !isEmpty(logoBuffer)) {
                         const newLogo = new Logo({
                             ticker: name,
-                            name,
+                            names: [name],
                             websites: [`https://www.${name}.com`],
                             logo: logoBuffer
                         })
