@@ -55,8 +55,9 @@ logoRouter.get('/', async (req, res) => {
             let logo = await Logo.findOne({ ticker });
             if (logo) {
                 // If found, return logo as base64 string
-                const base64Logo = logo.logo.toString('base64');
-                return res.json(base64Logo);
+                const imageBuffer = Buffer.from(logo.logo, 'base64');
+                res.setHeader('Content-Type', 'image/png');
+                return res.send(imageBuffer);
             }
 
             // Fetch data from Yahoo Finance if logo is not in database
@@ -90,9 +91,11 @@ logoRouter.get('/', async (req, res) => {
                 return handleErrorResponse(res, 500, 'Database error while saving logo.', error);
             }
 
-            // Return the newly saved logo as a base64 string
-            const base64Logo = logo.logo.toString('base64');
-            res.json(base64Logo);
+            if (logo) {
+                const imageBuffer = Buffer.from(logo.logo, 'base64');
+                res.setHeader('Content-Type', 'image/png');
+                return res.send(imageBuffer);
+            }
 
         } catch (error) {
             return handleErrorResponse(res, 500, 'Unexpected server error.', error);
@@ -110,8 +113,9 @@ logoRouter.get('/', async (req, res) => {
             // Check if any logo entry has this website in its websites array
             let logo = await Logo.findOne({ websites: url });
             if (logo) {
-                const base64Logo = logo.logo.toString('base64');
-                return res.json(base64Logo);
+                const imageBuffer = Buffer.from(logo.logo, 'base64');
+                res.setHeader('Content-Type', 'image/png');
+                return res.send(imageBuffer);
             }
             // Attempt to find the company ticker using Yahoo Finance or other APIs
             let ticker;
@@ -128,12 +132,15 @@ logoRouter.get('/', async (req, res) => {
                     const newLogo = new Logo({
                         ticker: helper[1],
                         names: [helper[1]],
-                        websites: [newUrl],
+                        websites: [`https://${newUrl}`],
                         logo: logoBuffer
                     })
                     logo = await newLogo.save();
-                    const base64Logo = logo.logo.toString('base64');
-                    res.json(base64Logo);
+                    if (logo) {
+                        const imageBuffer = Buffer.from(logo.logo, 'base64');
+                        res.setHeader('Content-Type', 'image/png');
+                        return res.send(imageBuffer);
+                    }
                 }
             } catch (error) {
                 return handleErrorResponse(res, 404, 'No brand found for this name.');
@@ -188,9 +195,11 @@ logoRouter.get('/', async (req, res) => {
                     logo = await newLogo.save();
                 }
 
-                // Return the logo as a base64 string
-                const base64Logo = logo.logo.toString('base64');
-                res.json(base64Logo);
+                if (logo) {
+                    const imageBuffer = Buffer.from(logo.logo, 'base64');
+                    res.setHeader('Content-Type', 'image/png');
+                    return res.send(imageBuffer);
+                }
             } else {
                 return handleErrorResponse(res, 404, 'No ticker found for the provided website.');
             }
@@ -204,8 +213,9 @@ logoRouter.get('/', async (req, res) => {
         try {
             let logo = await Logo.findOne({ names: name.toLowerCase() })
             if (logo) {
-                const base64Logo = logo.logo.toString('base64');
-                return res.json(base64Logo);
+                const imageBuffer = Buffer.from(logo.logo, 'base64');
+                res.setHeader('Content-Type', 'image/png');
+                return res.send(imageBuffer);
             }
 
             let ticker;
@@ -245,9 +255,11 @@ logoRouter.get('/', async (req, res) => {
                     logo = await newLogo.save();
                 }
 
-                // Return the logo as a base64 string
-                const base64Logo = logo.logo.toString('base64');
-                res.json(base64Logo);
+                if (logo) {
+                    const imageBuffer = Buffer.from(logo.logo, 'base64');
+                    res.setHeader('Content-Type', 'image/png');
+                    return res.send(imageBuffer);
+                }
             } else {
                 const newUrl = `${name}.com`
                 let logoBuffer
@@ -263,8 +275,11 @@ logoRouter.get('/', async (req, res) => {
                             logo: logoBuffer
                         })
                         logo = await newLogo.save();
-                        const base64Logo = logo.logo.toString('base64');
-                        res.json(base64Logo);
+                        if (logo) {
+                            const imageBuffer = Buffer.from(logo.logo, 'base64');
+                            res.setHeader('Content-Type', 'image/png');
+                            return res.send(imageBuffer);
+                        }
                     }
 
                     if (!logo) {
