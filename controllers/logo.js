@@ -76,7 +76,7 @@ logoRouter.get('/', async (req, res) => {
                 const result = await axios.get(logoUrl, { responseType: 'arraybuffer' });
                 logoBuffer = Buffer.from(result.data, 'binary');
             } catch (error) {
-                return handleErrorResponse(res, 502, `Unable to retrieve logo image for ticker: ${ticker}.`, error);
+                return handleErrorResponse(res, 400, `Unable to retrieve logo image for ticker: ${ticker}.`, error);
             }
 
             // Save new logo to the database
@@ -88,7 +88,7 @@ logoRouter.get('/', async (req, res) => {
             try {
                 logo = await newLogo.save();
             } catch (error) {
-                return handleErrorResponse(res, 500, 'Database error while saving logo.', error);
+                return handleErrorResponse(res, 400, 'Database error while saving logo.', error);
             }
 
             if (logo) {
@@ -98,7 +98,7 @@ logoRouter.get('/', async (req, res) => {
             }
 
         } catch (error) {
-            return handleErrorResponse(res, 500, 'Unexpected server error.', error);
+            return handleErrorResponse(res, 400, 'Unexpected server error.', error);
         }
     }
 
@@ -143,7 +143,7 @@ logoRouter.get('/', async (req, res) => {
                     }
                 }
             } catch (error) {
-                return handleErrorResponse(res, 404, 'No brand found for this name.');
+                return handleErrorResponse(res, 400, 'No brand found for this name.');
             }
 
             try {
@@ -168,7 +168,7 @@ logoRouter.get('/', async (req, res) => {
                     }
                 }
             } catch (error) {
-                return handleErrorResponse(res, 404, 'Unable to find a matching ticker for the provided website.', error);
+                return handleErrorResponse(res, 400, 'Unable to find a matching ticker for the provided website.', error);
             }
 
             // If ticker is found, proceed to retrieve the logo
@@ -179,7 +179,7 @@ logoRouter.get('/', async (req, res) => {
                     const result = await axios.get(logoUrl, { responseType: 'arraybuffer' });
                     logoBuffer = Buffer.from(result.data, 'binary');
                 } catch (error) {
-                    return handleErrorResponse(res, 502, `Unable to retrieve logo image for website: ${url}.`, error);
+                    return handleErrorResponse(res, 400, `Unable to retrieve logo image for website: ${url}.`, error);
                 }
 
                 // Check if a logo with this ticker already exists to update it with the new website
@@ -201,11 +201,11 @@ logoRouter.get('/', async (req, res) => {
                     return res.send(imageBuffer);
                 }
             } else {
-                return handleErrorResponse(res, 404, 'No ticker found for the provided website.');
+                return handleErrorResponse(res, 400, 'No ticker found for the provided website.');
             }
 
         } catch (error) {
-            return handleErrorResponse(res, 500, 'Unexpected server error.', error);
+            return handleErrorResponse(res, 400, 'Unexpected server error.', error);
         }
     }
 
@@ -228,7 +228,7 @@ logoRouter.get('/', async (req, res) => {
                     ticker = result.quotes[0].symbol
                 }
             } catch (error) {
-                return handleErrorResponse(res, 404, 'Unable to find a matching ticker for the provided website.', error);
+                return handleErrorResponse(res, 400, 'Unable to find a matching ticker for the provided website.', error);
             }
 
             // If ticker is found, proceed to retrieve the logo
@@ -239,7 +239,7 @@ logoRouter.get('/', async (req, res) => {
                     const result = await axios.get(logoUrl, { responseType: 'arraybuffer' });
                     logoBuffer = Buffer.from(result.data, 'binary');
                 } catch (error) {
-                    return handleErrorResponse(res, 502, `Unable to retrieve logo image for website: ${url}.`, error);
+                    return handleErrorResponse(res, 400, `Unable to retrieve logo image for website: ${url}.`, error);
                 }
 
                 // Check if a logo with this ticker already exists to update it with the new website
@@ -283,15 +283,15 @@ logoRouter.get('/', async (req, res) => {
                     }
 
                     if (!logo) {
-                        return handleErrorResponse(res, 404, 'No brand found for this name.');
+                        return handleErrorResponse(res, 400, 'No brand found for this name.');
                     }
                 } catch (error) {
-                    return handleErrorResponse(res, 404, 'No brand found for this name.');
+                    return handleErrorResponse(res, 400, 'No brand found for this name.');
                 }
 
             }
         } catch (error) {
-            return handleErrorResponse(res, 500, 'Unexpected server error.', error);
+            return handleErrorResponse(res, 400, 'Unexpected server error.', error);
         }
     }
 });
@@ -300,7 +300,7 @@ logoRouter.post('/', async (req, res) => {
     const { secret, names, ticker, websites, logo } = req.body
 
     if (!secret || secret != config.SECRET) {
-        return handleErrorResponse(res, 404, 'No permission.');
+        return handleErrorResponse(res, 400, 'No permission.');
     }
 
     if (!names || !ticker || !websites || !logo) {
@@ -325,7 +325,7 @@ logoRouter.post('/', async (req, res) => {
         const savedLogo = await newLogo.save();
         res.status(201).json(savedLogo);
     } catch (error) {
-        return handleErrorResponse(res, 500, 'Error saving new logo to the database.', error);
+        return handleErrorResponse(res, 400, 'Error saving new logo to the database.', error);
     }
 
 })
