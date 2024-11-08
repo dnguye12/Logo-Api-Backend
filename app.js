@@ -1,6 +1,8 @@
 //const http = require('http')
-const config = require("./utils/config");
 const express = require("express");
+const helmet = require("helmet")
+const slowDown = require("express-slow-down")
+const config = require("./utils/config");
 require("express-async-errors");
 const app = express();
 const cors = require("cors");
@@ -25,12 +27,19 @@ mongoose
     logger.error("error connecting to MongoDB:", error.message);
   });
 
+app.use(helmet())
 app.use(cors());
 app.use(express.static("build"));
 app.use(express.json());
 app.use(middleware.requestLogger);
 
-app.use('/api', logoRouter)
+const speedLimiter = slowDown({
+  windowMs: 60 * 1000,
+  delayAfter: 60,
+  delayMs: (hits) => hits * 500,
+})
+
+app.use('/api', speedLimiter, logoRouter)
 
 app.use(middleware.unknownEndpoint);
 app.use(middleware.errorHandler);
