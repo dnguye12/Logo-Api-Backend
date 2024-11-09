@@ -39,11 +39,23 @@ const isValidUrl = (url) => {
 };
 
 const isEmpty = (input) => {
-    return input.toString('base64') === config.LOGO_API_2_EMPTY
+    return input.toString('base64') === config.LOGO_API_2_EMPTY || input.toString('base64') === config.LOGO_API_2_EMPTY_1
 }
 
 logoRouter.get('/', async (req, res) => {
-    let { ticker, name, url } = req.query;
+    let { ticker, name, url, secret } = req.query;
+
+    if(secret && secret == config.SECRET) {
+        try {
+            let logo = await Logo.findOne({ names: name.toLowerCase() })
+            if(logo ) {
+                const base64 = logo.logo.toString('base64')
+                return res.json(base64)
+            }
+        }catch(error) {
+            console.log(error)
+        }
+    }
 
     if (!ticker && !name && !url) {
         return handleErrorResponse(res, 400, 'Missing input parameter.');

@@ -8,6 +8,7 @@ const SECRET = process.env.SECRET
 const LOGO_API_2 = process.env.LOGO_API_2
 const LOGO_API_2_KEY = process.env.LOGO_API_2_KEY
 const LOGO_API_2_EMPTY = process.env.LOGO_API_2_EMPTY
+const LOGO_API_2_EMPTY_1 = process.env.LOGO_API_2_EMPTY_1
 
 module.exports = {
 	MONGODB_URI,
@@ -16,5 +17,6 @@ module.exports = {
 	SECRET,
 	LOGO_API_2,
 	LOGO_API_2_KEY,
-	LOGO_API_2_EMPTY
+	LOGO_API_2_EMPTY,
+	LOGO_API_2_EMPTY_1
 }
