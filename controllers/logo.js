@@ -3,6 +3,15 @@ const logoRouter = require('express').Router();
 const config = require("../utils/config");
 const Logo = require('../models/logo');
 const { default: yahooFinance } = require('yahoo-finance2');
+const fs = require('fs')
+const { PNG } = require('pngjs')
+const sharp = require('sharp')
+const path = require('path')
+const { parse } = require('tldjs')
+
+const placeholderImagePath = path.join(__dirname, '../utils/logo-api.png')
+const placeholderImageBuffer = fs.readFileSync(placeholderImagePath)
+let placeholderPng = PNG.sync.read(placeholderImageBuffer);
 
 // Utility function for structured error response
 const handleErrorResponse = (res, statusCode, message, details = null) => {
@@ -10,49 +19,34 @@ const handleErrorResponse = (res, statusCode, message, details = null) => {
     return res.status(statusCode).json({ error: message });
 };
 
-// Helper function to validate and format URL
-const formatUrl = (url) => {
-    // If the protocol is missing, add http:// by default
-    if (!/^https?:\/\//i.test(url)) {
-        url = `https://${url}`;
-    }
-
-    let formattedUrl = new URL(url);
-
-    if (!formattedUrl.hostname.startsWith('www.')) {
-        formattedUrl.hostname = `www.${formattedUrl.hostname}`;
-    }
-
-    // Remove trailing slash if present
-    formattedUrl = formattedUrl.toString().replace(/\/+$/, '');
-
-    return formattedUrl;
-};
-
-const isValidUrl = (url) => {
+const isEmpty = async (inputBuffer) => {
     try {
-        new URL(url);
-        return true;
-    } catch {
+        const resizedInputBuffer = await sharp(inputBuffer).resize(400, 400).png().toBuffer();
+        const inputPNG = PNG.sync.read(resizedInputBuffer);
+
+        const pixelmatch = (await import('pixelmatch')).default;
+        const diffPixels = pixelmatch(inputPNG.data, placeholderPng.data, null, 400, 400, { threshold: 0.1 });
+
+        const totalPixels = inputPNG.width * inputPNG.height;
+        const diffPercentage = diffPixels / totalPixels;
+        return diffPercentage < 0.05;
+    } catch (error) {
+        console.error('Error comparing images:', error);
         return false;
     }
 };
 
-const isEmpty = (input) => {
-    return input.toString('base64') === config.LOGO_API_2_EMPTY || input.toString('base64') === config.LOGO_API_2_EMPTY_1
-}
-
 logoRouter.get('/', async (req, res) => {
     let { ticker, name, url, secret } = req.query;
 
-    if(secret && secret == config.SECRET) {
+    if (secret && secret == config.SECRET) {
         try {
             let logo = await Logo.findOne({ names: name.toLowerCase() })
-            if(logo ) {
+            if (logo) {
                 const base64 = logo.logo.toString('base64')
                 return res.json(base64)
             }
-        }catch(error) {
+        } catch (error) {
             console.log(error)
         }
     }
@@ -115,36 +109,38 @@ logoRouter.get('/', async (req, res) => {
     }
 
     if (url) {
-        url = formatUrl(url);
+        const urlParsed = parse(url)
 
-        if (!isValidUrl(url)) {
+        if (!urlParsed || !urlParsed.isValid) {
             return handleErrorResponse(res, 400, 'Invalid website URL parameter.');
         }
 
+        const urlDomain = urlParsed.domain
+
         try {
-            // Check if any logo entry has this website in its websites array
-            let logo = await Logo.findOne({ websites: url });
+            let logo = await Logo.findOne({ websites: urlDomain })
             if (logo) {
                 const imageBuffer = Buffer.from(logo.logo, 'base64');
                 res.setHeader('Content-Type', 'image/png');
                 return res.send(imageBuffer);
             }
+
             // Attempt to find the company ticker using Yahoo Finance or other APIs
             let ticker;
             let helper;
+            let logoBuffer;
 
-            helper = url.split('.')
-            const newUrl = helper[1] + '.' + helper[2]
-            let logoBuffer
+            helper = urlDomain.split('.')
+
             try {
-                const result = await axios.get(`${config.LOGO_API_2}${newUrl}/icon?c=${config.LOGO_API_2_KEY}`, { responseType: 'arraybuffer' })
+                const result = await axios.get(`${config.LOGO_API_2}${urlDomain}/icon?c=${config.LOGO_API_2_KEY}`, { responseType: 'arraybuffer' })
                 logoBuffer = Buffer.from(result.data, 'binary')
-
-                if (logoBuffer && !isEmpty(logoBuffer)) {
+                if (logoBuffer && !(await isEmpty(logoBuffer))) {
+                    
                     const newLogo = new Logo({
-                        ticker: helper[1],
-                        names: [helper[1]],
-                        websites: [`https://${newUrl}`],
+                        ticker: helper[0],
+                        names: [helper[0]],
+                        websites: [`${urlDomain}`],
                         logo: logoBuffer
                     })
                     logo = await newLogo.save();
@@ -155,6 +151,7 @@ logoRouter.get('/', async (req, res) => {
                     }
                 }
             } catch (error) {
+                console.log(error)
                 return handleErrorResponse(res, 400, 'No brand found for this name.');
             }
 
@@ -186,24 +183,24 @@ logoRouter.get('/', async (req, res) => {
             // If ticker is found, proceed to retrieve the logo
             if (ticker) {
                 const logoUrl = `${config.LOGO_API}${ticker}.png`;
-                let logoBuffer;
+                logoBuffer = null;
                 try {
                     const result = await axios.get(logoUrl, { responseType: 'arraybuffer' });
                     logoBuffer = Buffer.from(result.data, 'binary');
                 } catch (error) {
-                    return handleErrorResponse(res, 400, `Unable to retrieve logo image for website: ${url}.`, error);
+                    return handleErrorResponse(res, 400, `Unable to retrieve logo image for website: ${urlDomain}.`, error);
                 }
 
                 // Check if a logo with this ticker already exists to update it with the new website
                 let existingLogo = await Logo.findOne({ ticker });
                 if (existingLogo) {
                     // Update the document by adding the new website to the `websites` array
-                    existingLogo.websites.push(url);
+                    existingLogo.websites.push(urlDomain);
                     await existingLogo.save();
                     logo = existingLogo;
                 } else {
                     // If no existing entry, create a new document with the website list
-                    const newLogo = new Logo({ ticker, names: [helper], websites: [url], logo: logoBuffer });
+                    const newLogo = new Logo({ ticker, names: [helper], websites: [urlDomain], logo: logoBuffer });
                     logo = await newLogo.save();
                 }
 
@@ -258,12 +255,13 @@ logoRouter.get('/', async (req, res) => {
                 let existingLogo = await Logo.findOne({ ticker });
                 if (existingLogo) {
                     // Update the document by adding the new website to the `websites` array
-                    existingLogo.websites.push(url);
+                    existingLogo.names.push(name);
                     await existingLogo.save();
                     logo = existingLogo;
                 } else {
                     // If no existing entry, create a new document with the website list
-                    const newLogo = new Logo({ ticker, names: [name], websites: [`https://www.${name}.com`], logo: logoBuffer });
+
+                    const newLogo = new Logo({ ticker, names: [name], websites: [parse(`${name}.com`).domain], logo: logoBuffer });
                     logo = await newLogo.save();
                 }
 
@@ -273,32 +271,36 @@ logoRouter.get('/', async (req, res) => {
                     return res.send(imageBuffer);
                 }
             } else {
-                const newUrl = `${name}.com`
+                const newUrl = parse(`${name}.com`)
                 let logoBuffer
-                try {
-                    const result = await axios.get(`${config.LOGO_API_2}${newUrl}/icon?c=${config.LOGO_API_2_KEY}`, { responseType: 'arraybuffer' })
-                    logoBuffer = Buffer.from(result.data, 'binary')
+                if (newUrl.isValid) {
+                    try {
+                        const result = await axios.get(`${config.LOGO_API_2}${newUrl.domain}/icon?c=${config.LOGO_API_2_KEY}`, { responseType: 'arraybuffer' })
+                        logoBuffer = Buffer.from(result.data, 'binary')
 
-                    if (logoBuffer && !isEmpty(logoBuffer)) {
-                        const newLogo = new Logo({
-                            ticker: name,
-                            names: [name],
-                            websites: [`https://www.${name}.com`],
-                            logo: logoBuffer
-                        })
-                        logo = await newLogo.save();
-                        if (logo) {
-                            const imageBuffer = Buffer.from(logo.logo, 'base64');
-                            res.setHeader('Content-Type', 'image/png');
-                            return res.send(imageBuffer);
+                        if (logoBuffer && !isEmpty(logoBuffer)) {
+                            const newLogo = new Logo({
+                                ticker: name,
+                                names: [name],
+                                websites: [newUrl.domain],
+                                logo: logoBuffer
+                            })
+                            logo = await newLogo.save();
+                            if (logo) {
+                                const imageBuffer = Buffer.from(logo.logo, 'base64');
+                                res.setHeader('Content-Type', 'image/png');
+                                return res.send(imageBuffer);
+                            }
                         }
-                    }
 
-                    if (!logo) {
+                        if (!logo) {
+                            return handleErrorResponse(res, 400, 'No brand found for this name.');
+                        }
+                    } catch (error) {
                         return handleErrorResponse(res, 400, 'No brand found for this name.');
                     }
-                } catch (error) {
-                    return handleErrorResponse(res, 400, 'No brand found for this name.');
+                }else {
+
                 }
 
             }

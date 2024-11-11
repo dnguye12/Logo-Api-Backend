@@ -21,6 +21,10 @@
     "mongoose": "^7.8.2",
     "mongoose-unique-validator": "^4.0.1",
     "nodemon": "^3.1.7",
+    "pixelmatch": "^6.0.0",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.33.5",
+    "tldjs": "^2.3.1",
     "yahoo-finance2": "^2.13.2"
   }
 }
