@@ -74,7 +74,12 @@ logoRouter.get('/', async (req, res) => {
                 return handleErrorResponse(res, 400, 'Invalid ticker symbol.', error);
             }
 
-            const website = quoteSummary?.summaryProfile?.website || '';
+            let website = quoteSummary?.summaryProfile?.website || '';
+            if (parse(website).isValid) {
+                website = parse(website).domain
+            } else {
+                website = ''
+            }
 
             const logoUrl = `${config.LOGO_API}${ticker}.png`;
             let logoBuffer;
@@ -84,10 +89,10 @@ logoRouter.get('/', async (req, res) => {
             } catch (error) {
                 return handleErrorResponse(res, 400, `Unable to retrieve logo image for ticker: ${ticker}.`, error);
             }
-
             // Save new logo to the database
             const newLogo = new Logo({
-                ticker,
+                ticker: ticker.toUpperCase(),
+                names: [ticker],
                 websites: [website],
                 logo: logoBuffer
             });
@@ -136,9 +141,9 @@ logoRouter.get('/', async (req, res) => {
                 const result = await axios.get(`${config.LOGO_API_2}${urlDomain}/icon?c=${config.LOGO_API_2_KEY}`, { responseType: 'arraybuffer' })
                 logoBuffer = Buffer.from(result.data, 'binary')
                 if (logoBuffer && !(await isEmpty(logoBuffer))) {
-                    
+
                     const newLogo = new Logo({
-                        ticker: helper[0],
+                        ticker: helper[0].toUpperCase(),
                         names: [helper[0]],
                         websites: [`${urlDomain}`],
                         logo: logoBuffer
@@ -200,7 +205,7 @@ logoRouter.get('/', async (req, res) => {
                     logo = existingLogo;
                 } else {
                     // If no existing entry, create a new document with the website list
-                    const newLogo = new Logo({ ticker, names: [helper], websites: [urlDomain], logo: logoBuffer });
+                    const newLogo = new Logo({ ticker: ticker.toUpperCase(), names: [helper], websites: [urlDomain], logo: logoBuffer });
                     logo = await newLogo.save();
                 }
 
@@ -227,6 +232,13 @@ logoRouter.get('/', async (req, res) => {
                 return res.send(imageBuffer);
             }
 
+            logo = await Logo.findOne({ticker: name.toUpperCase()})
+            if(logo) {
+                const imageBuffer = Buffer.from(logo.logo, 'base64');
+                res.setHeader('Content-Type', 'image/png');
+                return res.send(imageBuffer);
+            }
+
             let ticker;
             try {
 
@@ -234,7 +246,7 @@ logoRouter.get('/', async (req, res) => {
                     newsCount: 0,
                 });
                 if (result && result.quotes && result.quotes.length > 0) {
-                    ticker = result.quotes[0].symbol
+                    ticker = result.quotes[0].symbol.toUpperCase()
                 }
             } catch (error) {
                 return handleErrorResponse(res, 400, 'Unable to find a matching ticker for the provided website.', error);
@@ -261,7 +273,7 @@ logoRouter.get('/', async (req, res) => {
                 } else {
                     // If no existing entry, create a new document with the website list
 
-                    const newLogo = new Logo({ ticker, names: [name], websites: [parse(`${name}.com`).domain], logo: logoBuffer });
+                    const newLogo = new Logo({ ticker: ticker.toUpperCase(), names: [name], websites: [parse(`${name}.com`).domain], logo: logoBuffer });
                     logo = await newLogo.save();
                 }
 
@@ -280,7 +292,7 @@ logoRouter.get('/', async (req, res) => {
 
                         if (logoBuffer && !isEmpty(logoBuffer)) {
                             const newLogo = new Logo({
-                                ticker: name,
+                                ticker: name.toUpperCase(),
                                 names: [name],
                                 websites: [newUrl.domain],
                                 logo: logoBuffer
@@ -299,7 +311,7 @@ logoRouter.get('/', async (req, res) => {
                     } catch (error) {
                         return handleErrorResponse(res, 400, 'No brand found for this name.');
                     }
-                }else {
+                } else {
 
                 }
 
